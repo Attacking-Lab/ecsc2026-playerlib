@@ -1,0 +1,17 @@
+{
+  "o": "offense_points",
+  "d": "defense_points",
+  "s": "sla_points",
+  "do": "offense_points_delta",
+  "dd": "defense_points_delta",
+  "ds": "sla_points_delta",
+  "st": "stolen_flags",
+  "cap": "captured_flags",
+  "dst": "stolen_flags_delta",
+  "dcap": "captured_flags_delta",
+  "c": "checker_status",
+  "m": "checker_message",
+  "dc": "checker_status_history",
+  "a": "num_attackers",
+  "v": "num_victims"
+}

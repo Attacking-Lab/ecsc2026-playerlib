@@ -1,0 +1,80 @@
+[project]
+name = "ecsc2026ad"
+version = "0.2.0"
+description = "Fast, cached access to the ECSC 2026 attack-info and scoreboard APIs for your exploits."
+readme = "README.md"
+license = "MIT"
+license_files = ["LICENSE.txt"]
+keywords = ["ECSC", "ECSC 2026", "Attack-Defense", "CTF", "Attack Info", "Scoreboard"]
+authors = [
+    { name = "Louis Burda", email = "dev@sinitax.com" }
+]
+requires-python = ">=3.10"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+dependencies = [
+    "click>=8.1.7",
+    "ctf-attackapi>=0.3.0",
+    "pydantic>=2.13.4",
+    "typing-extensions>=4.15.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Attacking-Lab/ecsc2026-playerlib"
+Repository = "https://github.com/Attacking-Lab/ecsc2026-playerlib"
+Issues = "https://github.com/Attacking-Lab/ecsc2026-playerlib/issues"
+
+[project.scripts]
+ecsc2026ad = "ecsc2026ad.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.27,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "ecsc2026ad"
+
+[dependency-groups]
+dev = [
+    "datamodel-code-generator>=0.45.0",
+    "jsonschema>=4.23.0",
+    "mypy>=1.19.1",
+    "pytest>=8.4.2",
+    "pyyaml>=6.0.3",
+    "types-jsonschema>=4.23.0",
+    "types-pyyaml>=6.0.12",
+    "ruff>=0.14.0",
+]
+
+[tool.ruff.lint]
+# E4/E7/E9 rather than all of E: ruff format owns line width, so E501 would only
+# ever fire on comments and docstrings it cannot rewrap.
+select = ["E4", "E7", "E9", "F", "W", "I", "B", "PYI", "ANN"]
+ignore = [
+    # The library deliberately exposes Any at its edges: decoded JSON payloads and
+    # the CLI's output helpers are type-agnostic.
+    "ANN401",
+    # typing.Self is 3.11+; returning the explicit class name is correct here and
+    # not worth widening the typing_extensions usage.
+    "PYI034",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN"]
+"examples/**" = ["ANN"]
+
+[tool.mypy]
+python_version = "3.10"
+disallow_untyped_defs = true
+packages = ["ecsc2026ad", "tests"]
+mypy_path = ["./src", "./tests"]

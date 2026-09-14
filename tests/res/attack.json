@@ -1,0 +1,50 @@
+{
+  "flag_regex": "ECSC\\{[A-Za-z0-9-_]{32}\\}",
+  "teams": [
+    {
+      "id": 1,
+      "name": "NOP",
+      "ip": "10.32.1.2"
+    },
+    {
+      "id": 2,
+      "name": "Team Two",
+      "ip": "10.32.2.2"
+    },
+    {
+      "id": 3,
+      "name": "Team Three",
+      "ip": "10.32.3.2"
+    }
+  ],
+  "attack_info": {
+    "ServiceA": {
+      "10.32.1.2": {
+        "5": {
+          "0": "alice",
+          "1": "bob"
+        },
+        "6": {
+          "0": "carol",
+          "1": null
+        }
+      },
+      "10.32.2.2": {
+        "5": {
+          "0": "dave",
+          "1": "erin"
+        }
+      }
+    },
+    "ServiceB": {
+      "10.32.1.2": {
+        "5": {
+          "0": "user-1"
+        }
+      }
+    }
+  },
+  "current_round": 7,
+  "current_round_start": 1730000000,
+  "current_round_until": 1730000060
+}

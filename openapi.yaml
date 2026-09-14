@@ -1,0 +1,564 @@
+openapi: 3.0.4
+info:
+  title: Scoreboard API
+  description: In-progress description of the scoreboard API
+  version: 0.1.0
+
+servers:
+  - url: /
+    description: This Server
+
+paths:
+  /api/scoreboard_current.json:
+    get:
+      summary: Current state of game and scoreboard
+      description: |
+        Information about the overall game state, inluding the current round. 
+        Updated every round and on begin/end.
+        Poll this endpoint for changes, then retrieve the actual relevant data from the per-round endpoints.
+      responses:
+        "200":
+          description: the requested data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreboardCurrent"
+
+  /api/scoreboard_round_{round}.json:
+    get:
+      summary: Scoreboard table for a specific round, all teams
+      description: |
+        Information about a single round, including everything you see on the main scoreboard view (the table).
+      parameters:
+        - in: path
+          name: round
+          schema:
+            type: integer
+          required: true
+          description: Round to get
+      responses:
+        "200":
+          description: the requested data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreboardRound"
+
+  /api/scoreboard_team_{team_id}.json:
+    get:
+      summary: Points for a specific team, all rounds
+      description: |
+        Points for a single team. Updated every round.
+      parameters:
+        - in: path
+          name: team_id
+          schema:
+            type: integer
+          required: true
+          description: Team ID to get
+      responses:
+        "200":
+          description: the requested data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreboardTeamHistory"
+
+  /api/scoreboard_teams.json:
+    get:
+      summary: List of all teams on the scoreboard
+      description: |
+        Information about all teams, static info. Only changes if teams edit their profile or change their logo.
+      responses:
+        "200":
+          description: the requested data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreboardTeams"
+
+  /api/scoreboard_service_stats.json:
+    get:
+      summary: List of attacker/victim counts for all services
+      description: |
+        Information about all services, updated every round.
+      responses:
+        "200":
+          description: the requested data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreboardServiceStats"
+
+  /api/attack.json:
+    get:
+      summary: Attack information for the current round
+      description: |
+        Everything an attacking team needs to find and recognize flags: the flag format,
+        the teams to attack, and the attack info of all still-valid rounds.
+        Rewritten at the start of every round, before the checker scripts of that round are dispatched.
+        Also served as /attack.json.
+      responses:
+        "200":
+          description: the requested data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttackInfo"
+
+
+
+
+components:
+  schemas:
+    GameState:
+      type: integer
+      description: Current state of the game. Not all states are used in all CTFs.
+      enum: [ 1, 2, 3 ]
+      "x-enum-varnames": [
+        "STOPPED",
+        "PAUSED",
+        "RUNNING"
+      ]
+
+    CheckerStatus:
+      type: string
+      description: |
+        Checker status of a service for one team and round: the gameserver's verdict over
+        all checker tasks of that round, derived from the CheckerTaskResult values
+        (OK / MUMBLE / OFFLINE / INTERNAL_ERROR) the checker returned for each of them.
+        - SUCCESS: every task returned OK
+        - RECOVERING: this round's tasks are fine, but a task for an earlier round did not
+          return OK - the service works, old flags are not retrievable
+        - MUMBLE: a task of this round returned MUMBLE
+        - OFFLINE: a task of this round returned OFFLINE
+        - TIMEOUT: a task did not answer within its timeout (INTERNAL_ERROR, "TIMEOUT")
+        - CRASHED: a task failed with INTERNAL_ERROR for any other reason
+        - REVOKED: the one value that never comes from a checker - no result exists,
+          because the task was cancelled when the round ended or answered too late.
+          A task still in flight when its round is collected is revoked as well, so a
+          round's statuses are final once it is scored.
+      enum:
+        - SUCCESS
+        - RECOVERING
+        - MUMBLE
+        - OFFLINE
+        - TIMEOUT
+        - CRASHED
+        - REVOKED
+
+    ScoreboardCurrent:
+      description: "API result for /api/scoreboard_current.json"
+      type: object
+      properties:
+        current_round:
+          type: integer
+          description: The round we're currently playing (if live), 0 before the game, last played round after the game.
+          default: 0
+        state:
+          $ref: '#/components/schemas/GameState'
+          description: Current state of the game (running / stopped / paused)
+        validity_period:
+          type: integer
+          description: number of rounds that the flags are valid for (in addition to the round they're stored in)
+        current_round_start:
+          type: integer
+          nullable: true
+          description: Unix timestamp when the current round started
+        current_round_until:
+          type: integer
+          nullable: true
+          description: Unix timestamp when the current round ends/ended
+        scoreboard_round:
+          type: integer
+          description: |
+            Round number until which the scoreboard is created (per-round urls are available).
+            -1 is a valid round where the game hasn't started yet and the service names are hidden.
+          default: -1
+        banned_teams:
+          type: array
+          description: List of team IDs that are cut off from network, or permanently banned
+          items:
+            type: integer
+          default: [ ]
+        frozen:
+          type: boolean
+          description: true if the scoreboard is frozen (scores not updated in final moments of the game)
+          default: false
+      required:
+        - current_round
+        - state
+        - validity_period
+        - scoreboard_round
+        - banned_teams
+      additionalProperties: true
+
+    ScoreboardRound:
+      description: "API result for /api/scoreboard_round_{round}.json"
+      type: object
+      properties:
+        round:
+          type: integer
+          description: |
+            Round number (as in request). 
+            Data for round 1 is created AFTER round 1 finished (while round 2 is running).
+            Round -1 is before the game starts (service names hidden).
+            Round 0 is when the game starts but no round has completed (service names revealed).
+        scoreboard:
+          type: array
+          description: A list of all teams, ordered by score descending (like the scoreboard table)
+          items:
+            title: ScoreboardTeamRow
+            description: The per-round stats of one team (single row in the scoreboard table)
+            type: object
+            properties:
+              team_id:
+                type: integer
+                description: ID of the team
+              rank:
+                type: integer
+                description: Current rank of the team (1 is the winning team, ranks might or might not be not unique if teams have the same score)
+              points:
+                type: number
+                description: Total points for the team
+              services:
+                type: array
+                description: Scores for each service for this team
+                items:
+                  title: TeamServiceRoundInfo
+                  description: Scores for one service for one team (one cell in the main scoreboard table)
+                  type: object
+                  properties:
+                    o:
+                      type: number
+                      description: Offense points, total
+                    d:
+                      type: number
+                      description: Defense points, total
+                    s:
+                      type: number
+                      description: SLA points, total
+                    do:
+                      type: number
+                      description: Difference in offense points compared to previous round
+                    dd:
+                      type: number
+                      description: Difference in defense compared to previous round
+                    ds:
+                      type: number
+                      description: Difference in SLA compared to previous round
+                    st:
+                      type: integer
+                      description: Number of flags stolen from this team (this team is the victim)
+                    cap:
+                      type: integer
+                      description: Number of flags captured by this team (this team is the attacker)
+                    dst:
+                      type: integer
+                      description: Difference in stolen flags compared to previous round (this team is the victim)
+                    dcap:
+                      type: integer
+                      description: Difference in captured flags compared to previous round (this team is the attacker)
+                    c:
+                      $ref: "#/components/schemas/CheckerStatus"
+                      description: Checker status in this round
+                    m:
+                      type: string
+                      nullable: true
+                      description: |
+                        Additional message from the checker, if any. Can be empty or null if missing.
+                    dc:
+                      type: array
+                      description: "Checker status in the past N rounds. Order: newest first. [result X-1, result X-2, ...]"
+                      items:
+                        $ref: "#/components/schemas/CheckerStatus"
+                  required:
+                    - o
+                    - d
+                    - s
+                    - do
+                    - dd
+                    - ds
+                    - st
+                    - cap
+                    - dst
+                    - dcap
+                    - c
+                    - m
+                    - dc
+              o:
+                type: number
+                description: Total/overall offense points
+              d:
+                type: number
+                description: Total/overall defense points
+              s:
+                type: number
+                description: Total/overall SLA points
+              do:
+                type: number
+                description: Total offense points compared to last round (delta)
+              dd:
+                type: number
+                description: Total defense points compared to last round (delta)
+              ds:
+                type: number
+                description: Total SLA points compared to last round (delta)
+            required:
+              - team_id
+              - rank
+              - points
+              - services
+              - o
+              - d
+              - s
+              - do
+              - dd
+              - ds
+        services:
+          type: array
+          description: List of all played services
+          items:
+            title: ServiceRoundInfo
+            description: "Status of one service for one round (in scoreboard table: header cell with service name)"
+            type: object
+            properties:
+              name:
+                type: string
+                description: Name of the service
+              attackers:
+                description: Number of teams that successfully stole at least one flag in this round, or "?" if hidden
+                oneOf:
+                  - type: integer
+                  - type: string
+                    enum: [ "?" ]
+              victims:
+                description: Number of teams that were successfully attacked on this service in this round, or "?" if hidden
+                oneOf:
+                  - type: integer
+                  - type: string
+                    enum: [ "?" ]
+              first_blood:
+                type: array
+                description: List of teams that achieved first blood on a flag store of this service. One entry per first-blooded flagstore.
+                items:
+                  title: FirstBlood
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: Name of the team that achieved first blood
+                    ts:
+                      type: number
+                      description: Unix timestamp of the first blood submission
+                    confirmed:
+                      type: boolean
+                      description: True if we consider this a valid first blood (if relevant for game definition)
+                    level:
+                      type: integer
+                      description: Firstblood level achieved (if supported by game definition)
+                    payload:
+                      type: integer
+                      description: Payload / flag store index this first blood was scored on
+                default: [ ]
+              flag_stores:
+                type: integer
+                description: Total number of flag stores for this service
+              flag_stores_exploited:
+                type: integer
+                description: Number of flag stores that have already been first-blooded
+            required:
+              - name
+              - attackers
+              - victims
+              - first_blood
+              - flag_stores
+              - flag_stores_exploited
+      required:
+        - round
+        - scoreboard
+        - services
+
+    ScoreboardTeamHistory:
+      description: "API result for /api/scoreboard_team_{team_id}.json"
+      type: object
+      properties:
+        services:
+          type: array
+          description: Ordered list of all services
+          items:
+            type: string
+            description: Service name
+        points:
+          type: array
+          description: Points per service, items in same order as services (points[i][round] belongs to services[i])
+          items:
+            type: array
+            description: Points per round, indexed by round
+            items:
+              type: number
+              description: Points for this service/round
+      required:
+        - services
+        - points
+
+    ScoreboardTeams:
+      type: object
+      description: |
+        Information about all teams, indexed by team ID.
+        API result for /api/scoreboard_teams.json
+      additionalProperties:
+        title: StaticTeamInfo
+        description: Static information about one team.
+        type: object
+        properties:
+          name:
+            type: string
+            description: Name of the team
+            example: [ "NOP" ]
+          vulnbox:
+            type: string
+            description: IP address of the team's vulnbox
+            example: [ "10.32.1.2" ]
+          aff:
+            type: string
+            description: Team affiliation or organization (if given)
+          web:
+            type: string
+            description: Team website URL (if given)
+          logo:
+            oneOf:
+              - type: string
+              - type: boolean
+                enum: [ false ]
+            description: |
+              Filename of the team's logo image, without path or url. 
+              Usually you can fetch it from /logos/<filename> (NOT /api/logos/...). 
+              If the logo is not set, this might be the filename of a placeholder image, or false.
+        required:
+          - name
+          - vulnbox
+          - aff
+          - web
+          - logo
+
+    ScoreboardServiceStats:
+      type: object
+      description: |
+        Number of attackers/victims per service over time.
+        API result for /api/scoreboard_service_stats.json
+      properties:
+        services:
+          type: array
+          description: List of services we have stats for
+          items:
+            type: string
+            description: Service name
+
+        stats:
+          type: array
+          description: |
+            List of attacker/victim timeline per service, same length and order as services.
+            stats[i][round] belongs to services[i].
+          items:
+            type: array
+            description: List of attackers/victims per round for one service (starting from round 0, chronologically)
+            items:
+              type: object
+              title: ServiceAttackerVictimCount
+              description: Number of attackers/victims in one round and service
+              properties:
+                a:
+                  description: Number of attacking teams in this round and service, or "?" if hidden
+                  oneOf:
+                    - type: integer
+                    - type: string
+                      enum: [ "?" ]
+                v:
+                  description: Number of victim teams in this round and service, or "?" if hidden
+                  oneOf:
+                    - type: integer
+                    - type: string
+                      enum: [ "?" ]
+              required:
+                - a
+                - v
+      required:
+        - services
+        - stats
+
+    AttackInfo:
+      type: object
+      description: |
+        Flag format, teams and attack info for the current round.
+        API result for /api/attack.json
+      properties:
+        flag_regex:
+          type: string
+          description: Regular expression that matches a flag, to find flags in exploit output
+        teams:
+          type: array
+          description: List of all teams that can be attacked
+          items:
+            title: AttackInfoTeam
+            description: One attackable team.
+            type: object
+            properties:
+              id:
+                type: integer
+                description: ID of the team
+              name:
+                type: string
+                description: Name of the team
+              ip:
+                type: string
+                description: IP address of the team's vulnbox
+                example: [ "10.32.1.2" ]
+            required:
+              - id
+              - name
+              - ip
+        attack_info:
+          title: AttackInfoPerService
+          type: object
+          description: |
+            Attack info, keyed by service name, then by vulnbox IP, then by round.
+            Only services that publish attack info are listed.
+            Rounds range over the still-valid ones, excluding the current round -
+            its attack info is published once the round is over.
+          additionalProperties:
+            title: AttackInfoPerTeam
+            type: object
+            description: Attack info of one service, keyed by the team's vulnbox IP
+            additionalProperties:
+              title: AttackInfoPerRound
+              type: object
+              description: Attack info of one service and team, keyed by round number
+              additionalProperties:
+                title: AttackInfoOfRound
+                type: object
+                description: |
+                  The attack info of one service, team and round, keyed by the index of the
+                  flag store it belongs to.
+                  null for a custom value the checker script never reported.
+                additionalProperties:
+                  type: string
+                  nullable: true
+        current_round:
+          type: integer
+          description: The round we're currently playing (if live), 0 before the game, last played round after the game.
+        current_round_start:
+          type: integer
+          nullable: true
+          description: Unix timestamp when the current round started
+        current_round_until:
+          type: integer
+          nullable: true
+          description: Unix timestamp when the current round ends/ended
+      required:
+        - flag_regex
+        - teams
+        - attack_info
+        - current_round
+        - current_round_start
+        - current_round_until

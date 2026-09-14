@@ -1,0 +1,37 @@
+name: "Publish pypi package"
+
+on:
+  push:
+    tags:
+      # Publish on any tag starting with a `v`, e.g., v0.1.0
+      - v*
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      UV_PYTHON: 3.14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.14
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Build
+        run: uv build
+      - name: Re-run basic tests
+        run: |
+          uv run mypy
+          uv run pytest
+      - name: Publish
+        run: uv publish

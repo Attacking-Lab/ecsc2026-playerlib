@@ -1,0 +1,4 @@
+{
+  "1": {"name": "NOP", "vulnbox": "10.32.1.2", "aff": "", "web": "", "logo": false},
+  "2": {"name": "Team Two", "vulnbox": "10.32.2.2", "aff": "Uni X", "web": "https://two.example", "logo": "def456.png"}
+}
