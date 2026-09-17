@@ -1,11 +1,12 @@
 import asyncio
+import os
 import tempfile
 import time
 from contextlib import contextmanager
 from typing import Generator, List, Tuple
 from unittest.mock import patch
 
-from ecsc2026ad.api import EcscApiAsync, _normalize_base_url
+from ecsc2026ad.api import ENV_VAR, EcscApiAsync, _normalize_base_url
 from ecsc2026ad.models import GameStateEnum
 
 from .utils import AsyncThread, BaseTestCase
@@ -47,6 +48,29 @@ class NormalizeBaseUrlTestCase(BaseTestCase):
         self.assertEqual(
             "http://localhost:4200/api/", _normalize_base_url("localhost:4200")
         )
+
+
+class DefaultUrlTestCase(BaseTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self._env_backup = os.environ.pop(ENV_VAR, None)
+
+    def tearDown(self) -> None:
+        if self._env_backup is not None:
+            os.environ[ENV_VAR] = self._env_backup
+
+    def test_unconfigured_client_uses_the_ecsc_scoreboard(self) -> None:
+        self.assertEqual(
+            "https://scoreboard.ad.ecsc2026.de/api/", EcscApiAsync()._base_url
+        )
+
+    def test_env_var_beats_the_default(self) -> None:
+        os.environ[ENV_VAR] = "10.13.37.1:4200"
+        self.assertEqual("http://10.13.37.1:4200/api/", EcscApiAsync()._base_url)
+
+    def test_explicit_url_beats_both(self) -> None:
+        os.environ[ENV_VAR] = "10.13.37.1:4200"
+        self.assertEqual("https://h/api/", EcscApiAsync("https://h")._base_url)
 
 
 class ApiTestCase(BaseTestCase):

@@ -4,6 +4,7 @@ The ECSC 2026 player API clients.
 :class:`EcscApiAsync` is the async core; :class:`EcscApiSync` is a thin ``asyncio.run`` wrapper.
 Both accept the game's base URL -- the host serving the ``api/`` directory that holds
 ``attack.json`` and the ``scoreboard_*.json`` files -- and cache every endpoint on memory + disk.
+Without one they read ``$ECSC_API``, and without that the ECSC 2026 scoreboard.
 
 Fetching and caching are ctf-attackapi's: every endpoint here is a ``GenericAdCtfApiAsync`` over
 the same two-tier (memory + disk) cache. attack.json is decoded there too, by its ``atklab``
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
     from aiohttp import TCPConnector
 
 ENV_VAR = "ECSC_API"
+DEFAULT_API_URL = "https://scoreboard.ad.ecsc2026.de"
 
 T = TypeVar("T")
 
@@ -110,9 +112,9 @@ class EcscApiAsync:
     ) -> None:
         """
         :param base_url: the game's base URL, its ``api/`` directory, or a file in that
-            directory (defaults to the ``ECSC_API`` environment variable). ``api/`` is appended
-            unless the URL already names it, and ``http://`` is assumed when no scheme is given.
-            May include basic-auth credentials.
+            directory (defaults to the ``ECSC_API`` environment variable, then to the ECSC 2026
+            scoreboard). ``api/`` is appended unless the URL already names it, and ``http://`` is
+            assumed when no scheme is given. May include basic-auth credentials.
         :param tmp_directory: where to store the disk cache
         :param lifetime: how long to cache data for (seconds)
         :param timeout: how long to wait for a game API request (seconds)
@@ -120,11 +122,9 @@ class EcscApiAsync:
         :param progress: optional context-manager factory called with the URL during remote fetches
         """
         if not base_url:
-            if ENV_VAR not in os.environ:
-                raise ValueError(
-                    f"No game URL configured. Pass base_url or set the {ENV_VAR} environment variable."
-                )
-            base_url = os.environ[ENV_VAR]
+            # the production scoreboard as the last resort: during the competition that is the
+            # game, so an exploit written without a URL runs instead of raising
+            base_url = os.environ.get(ENV_VAR) or DEFAULT_API_URL
         if timeout < 1:
             raise ValueError("Timeout must be at least 1 second")
         if lifetime < timeout:

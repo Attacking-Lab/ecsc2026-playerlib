@@ -1,6 +1,6 @@
 """Read the scoreboard: game state, ranking, and per-service stats.
 
-Usage: scoreboard.py [API_URL]   (falls back to the ECSC_API environment variable)
+Usage: scoreboard.py [API_URL]   (falls back to $ECSC_API, then the ECSC 2026 scoreboard)
 """
 
 import sys

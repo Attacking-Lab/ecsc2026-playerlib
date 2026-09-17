@@ -2,11 +2,11 @@ ECSC 2026 Player Library
 ========================
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/license/mit)
-![Python](https://img.shields.io/pypi/pyversions/ecsc2026ad)
-![Types](https://img.shields.io/pypi/types/ecsc2026ad)
+![Python](https://img.shields.io/pypi/pyversions/ecsc2026ad?label=python)
+![Types](https://img.shields.io/pypi/types/ecsc2026ad?label=types)
 [![Python package tests](https://github.com/Attacking-Lab/ecsc2026-playerlib/actions/workflows/python-package.yml/badge.svg)](https://github.com/Attacking-Lab/ecsc2026-playerlib/actions/workflows/python-package.yml)
-[![PyPI version](https://img.shields.io/pypi/v/ecsc2026ad)](https://pypi.org/project/ecsc2026ad)
-![Downloads](https://img.shields.io/pypi/dm/ecsc2026ad)
+[![PyPI version](https://img.shields.io/pypi/v/ecsc2026ad?label=pypi)](https://pypi.org/project/ecsc2026ad)
+![Downloads](https://img.shields.io/pypi/dm/ecsc2026ad?label=downloads)
 
 
 Attack info and scoreboard for ECSC 2026, in your exploits and in your shell!
@@ -35,15 +35,15 @@ Quick-Start
 pip install ecsc2026ad
 ```
 
-Point it at the game once, either per client or through `ECSC_API`:
+It already points at the game; pass another URL per client or set `ECSC_API` to override it:
 
 ```python
 from ecsc2026ad import EcscApiSync
 
-with EcscApiSync("https://scoreboard.ad.ecsc2026.de") as ecsc:
+with EcscApiSync() as ecsc:  # default: https://scoreboard.ad.ecsc2026.de
     info = ecsc.attack_info()
     for team in info.teams:
-        for flag_id in info.flag_id_flat("ServiceA", team):
+        for flag_id in info.flag_ids("ServiceA", team):
             pwn(team.ip, flag_id)
 ```
 
@@ -52,7 +52,7 @@ The async client is the same API with `await`, and both are context managers:
 ```python
 from ecsc2026ad import EcscApiAsync
 
-async with EcscApiAsync() as ecsc:  # reads ECSC_API
+async with EcscApiAsync() as ecsc:  # default: https://scoreboard.ad.ecsc2026.de
     info = await ecsc.attack_info()
     board = await ecsc.scoreboard()  # latest published round
     print(board.top(5))
@@ -98,7 +98,7 @@ Attack info
 `attack.json` is fetched, cached and decoded by
 [ctf-attackapi](https://github.com/Attacking-Lab/ctf-attackapi), which speaks the formats of several
 attack-defense games; ECSC 2026 is its `atklab` dialect. `AttackInfo` and `Team` are that package's
-types, re-exported here, so `info.team(...)`, `info.flag_id_raw(...)` and `info.flag_id_flat(...)`
+types, re-exported here, so `info.team(...)`, `info.flag_ids(...)` and `info.flag_ids_raw(...)`
 behave exactly as they do there, and an exploit written against one works against the other.
 
 This package adds the scoreboard endpoints on top, which are outside that package's scope. Its

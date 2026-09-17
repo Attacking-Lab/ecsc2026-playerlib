@@ -1,6 +1,6 @@
 [project]
 name = "ecsc2026ad"
-version = "0.2.0"
+version = "0.2.3"
 description = "Fast, cached access to the ECSC 2026 attack-info and scoreboard APIs for your exploits."
 readme = "README.md"
 license = "MIT"

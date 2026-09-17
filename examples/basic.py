@@ -1,6 +1,6 @@
 """Synchronous exploit example: fire at every team's ServiceA.
 
-Usage: basic.py [API_URL]   (falls back to the ECSC_API environment variable)
+Usage: basic.py [API_URL]   (falls back to $ECSC_API, then the ECSC 2026 scoreboard)
 """
 
 import sys

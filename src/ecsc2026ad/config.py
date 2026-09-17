@@ -19,6 +19,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, Optional
 
+from ecsc2026ad.api import DEFAULT_API_URL
+
 _URLISH = re.compile(r"[.:/\\@\s]")
 
 
@@ -56,7 +58,7 @@ class Host:
 
 
 DEFAULT_HOST_NAME = "default"
-DEFAULT_HOST_URL = "https://scoreboard.ad.ecsc2026.de"
+DEFAULT_HOST_URL = DEFAULT_API_URL
 
 
 class HostStore:
